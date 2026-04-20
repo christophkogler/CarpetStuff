@@ -32,18 +32,25 @@ internal static class CarpetStuffState
     private const float DefaultClothFlammability = 1f;
     private const float DefaultClothBeauty = 1f;
     private const float DefaultClothProtectiveness = 0.16f;
-    private const float MinimumCleaningScale = 0.55f;
+    private const float MinimumCleaningScale = 0.25f;
     private const float MaximumCleaningScale = 1.35f;
 
     private static readonly FieldInfo ElementsField = AccessTools.Field(typeof(Designator_Dropdown), "elements");
     private static readonly FieldInfo ActiveDesignatorField = AccessTools.Field(typeof(Designator_Dropdown), "activeDesignator");
     private static readonly FieldInfo ActiveDesignatorSetField = AccessTools.Field(typeof(Designator_Dropdown), "activeDesignatorSet");
+    private static readonly MethodInfo InitializeTerrainShortHashDictionaryMethod = AccessTools.Method(typeof(DefDatabase<TerrainDef>), "InitializeShortHashDictionary");
+    private static readonly MethodInfo ResolveDesignatorsMethod = AccessTools.Method(typeof(DesignationCategoryDef), "ResolveDesignators");
 
     private static readonly TerrainDef? BurnedCarpetDef = DefDatabase<TerrainDef>.GetNamedSilentFail("BurnedCarpet");
     private static readonly Dictionary<DesignatorDropdownGroupDef, CarpetDropdownData> DropdownData = new();
     private static readonly Dictionary<DesignatorDropdownGroupDef, ThingDef> SelectedStuffByGroup = new();
     private static readonly Dictionary<TerrainDef, string> BaseKeyByTerrain = new();
     private static bool generated;
+
+    static CarpetStuffState()
+    {
+        LongEventHandler.ExecuteWhenFinished(GenerateMaterialCarpets);
+    }
 
     public static bool TryBuildMaterialOptions(Designator_Dropdown dropdown, out List<FloatMenuOption> options)
     {
@@ -126,9 +133,13 @@ internal static class CarpetStuffState
 
                 TerrainDef clone = CreateTerrainVariant(baseCarpet, stuff, clothFlammability, clothBeauty, clothProtectiveness);
                 DefGenerator.AddImpliedDef(clone);
+                AssignGeneratedShortHash(clone);
                 RegisterTerrain(clone, stuff, baseCarpet.defName);
             }
         }
+
+        InitializeTerrainShortHashDictionaryMethod?.Invoke(null, null);
+        RebuildFloorDesignationCategory();
     }
 
     private static void RegisterTerrain(TerrainDef terrain, ThingDef stuff, string baseKey)
@@ -429,6 +440,39 @@ internal static class CarpetStuffState
         clone.shortHash = 0;
         return clone;
     }
+
+    private static void AssignGeneratedShortHash(TerrainDef def)
+    {
+        if (def.shortHash != 0)
+        {
+            return;
+        }
+
+        HashSet<ushort> used = DefDatabase<TerrainDef>.AllDefsListForReading
+            .Where(existing => existing != def && existing.shortHash != 0)
+            .Select(existing => existing.shortHash)
+            .ToHashSet();
+
+        ushort hash = (ushort)(GenText.StableStringHash("CarpetStuff:" + def.defName) % 65535);
+        while (hash == 0 || used.Contains(hash))
+        {
+            hash++;
+        }
+
+        def.shortHash = hash;
+    }
+
+    private static void RebuildFloorDesignationCategory()
+    {
+        DesignationCategoryDef? floors = DesignationCategoryDefOf.Floors;
+        if (floors == null)
+        {
+            return;
+        }
+
+        floors.DirtyCache();
+        ResolveDesignatorsMethod?.Invoke(floors, null);
+    }
 }
 
 public sealed class CarpetStuffInjectorDef : Def
@@ -436,7 +480,6 @@ public sealed class CarpetStuffInjectorDef : Def
     public override void ResolveReferences()
     {
         base.ResolveReferences();
-        CarpetStuffState.GenerateMaterialCarpets();
     }
 }
 
