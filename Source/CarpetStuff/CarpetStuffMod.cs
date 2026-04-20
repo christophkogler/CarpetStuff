@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using HarmonyLib;
 using RimWorld;
 using UnityEngine;
@@ -17,7 +16,6 @@ public sealed class CarpetStuffMod : Mod
     public CarpetStuffMod(ModContentPack content)
         : base(content)
     {
-        RuntimeHelpers.RunClassConstructor(typeof(CarpetStuffState).TypeHandle);
         new Harmony(PackageId).PatchAll();
     }
 }
@@ -161,6 +159,21 @@ internal static class CarpetStuffState
         return BaseKeyByTerrain.TryGetValue(terrain, out string? baseKey)
             && terrain.defName != baseKey
             && terrain.modContentPack?.PackageIdPlayerFacing == CarpetStuffMod.PackageId;
+    }
+
+    public static BuildableDef? GetBaseBuildable(BuildableDef? buildable)
+    {
+        if (buildable is not TerrainDef terrain)
+        {
+            return buildable;
+        }
+
+        if (!BaseKeyByTerrain.TryGetValue(terrain, out string? baseKey))
+        {
+            return buildable;
+        }
+
+        return DefDatabase<TerrainDef>.GetNamedSilentFail(baseKey) ?? buildable;
     }
 
     private static void RegisterTerrain(TerrainDef terrain, ThingDef stuff, string baseKey)
@@ -582,14 +595,21 @@ internal static class DesignatorRightClickFloatMenuOptionsPatch
 [HarmonyPatch(typeof(Ideo), nameof(Ideo.MembersCanBuild))]
 internal static class IdeoMembersCanBuildPatch
 {
-    private static void Postfix(Thing thing, ref bool __result)
+    private static void Postfix(Ideo __instance, Thing thing, ref bool __result)
     {
         if (__result)
         {
             return;
         }
 
-        if (CarpetStuffState.IsGeneratedMaterialTerrain(thing?.def?.entityDefToBuild))
+        BuildableDef? buildable = thing?.def?.entityDefToBuild ?? thing?.def;
+        BuildableDef? baseBuildable = CarpetStuffState.GetBaseBuildable(buildable);
+        if (baseBuildable == buildable)
+        {
+            return;
+        }
+
+        if (baseBuildable?.canGenerateDefaultDesignator == true)
         {
             __result = true;
         }
