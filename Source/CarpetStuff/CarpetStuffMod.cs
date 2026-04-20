@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using HarmonyLib;
 using RimWorld;
 using UnityEngine;
@@ -16,6 +17,7 @@ public sealed class CarpetStuffMod : Mod
     public CarpetStuffMod(ModContentPack content)
         : base(content)
     {
+        RuntimeHelpers.RunClassConstructor(typeof(CarpetStuffState).TypeHandle);
         new Harmony(PackageId).PatchAll();
     }
 }
@@ -147,6 +149,18 @@ internal static class CarpetStuffState
         InitializeThingShortHashDictionaryMethod?.Invoke(null, null);
         InitializeTerrainShortHashDictionaryMethod?.Invoke(null, null);
         RebuildFloorDesignationCategory();
+    }
+
+    public static bool IsGeneratedMaterialTerrain(BuildableDef? buildable)
+    {
+        if (buildable is not TerrainDef terrain)
+        {
+            return false;
+        }
+
+        return BaseKeyByTerrain.TryGetValue(terrain, out string? baseKey)
+            && terrain.defName != baseKey
+            && terrain.modContentPack?.PackageIdPlayerFacing == CarpetStuffMod.PackageId;
     }
 
     private static void RegisterTerrain(TerrainDef terrain, ThingDef stuff, string baseKey)
@@ -562,5 +576,22 @@ internal static class DesignatorRightClickFloatMenuOptionsPatch
         }
 
         __result = __result.Concat(options);
+    }
+}
+
+[HarmonyPatch(typeof(Ideo), nameof(Ideo.MembersCanBuild))]
+internal static class IdeoMembersCanBuildPatch
+{
+    private static void Postfix(Thing thing, ref bool __result)
+    {
+        if (__result)
+        {
+            return;
+        }
+
+        if (CarpetStuffState.IsGeneratedMaterialTerrain(thing?.def?.entityDefToBuild))
+        {
+            __result = true;
+        }
     }
 }
