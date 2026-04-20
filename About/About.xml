@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>Carpet Stuff</name>
+  <author>OpenAI Codex</author>
+  <packageId>christoph.carpetstuff</packageId>
+  <supportedVersions>
+    <li>1.6</li>
+  </supportedVersions>
+  <modDependencies>
+    <li>
+      <packageId>brrainz.harmony</packageId>
+      <displayName>Harmony</displayName>
+      <steamWorkshopUrl>https://steamcommunity.com/sharedfiles/filedetails/?id=2009463077</steamWorkshopUrl>
+    </li>
+  </modDependencies>
+  <description>Adds textile and leather material variants for carpet floors, with flammability, beauty, and cleaning time derived from the chosen material.</description>
+</ModMetaData>

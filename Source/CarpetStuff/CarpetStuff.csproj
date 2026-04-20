@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <NoWarn>$(NoWarn);NU1900</NoWarn>
+    <AssemblyName>CarpetStuff</AssemblyName>
+    <RootNamespace>CarpetStuff</RootNamespace>
+    <OutputPath>../../1.6/Assemblies/</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <RimWorldDir Condition="'$(RimWorldDir)' == ''">/home/christoph/snap/steam/common/.local/share/Steam/steamapps/common/RimWorld</RimWorldDir>
+    <RimWorldManagedDir>$(RimWorldDir)/RimWorldLinux_Data/Managed</RimWorldManagedDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(RimWorldManagedDir)/Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(RimWorldManagedDir)/UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(RimWorldManagedDir)/UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(RimWorldManagedDir)/UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Lib.Harmony" Version="2.4.2" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

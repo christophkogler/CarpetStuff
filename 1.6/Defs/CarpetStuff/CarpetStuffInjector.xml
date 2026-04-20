@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+  <CarpetStuff.CarpetStuffInjectorDef>
+    <defName>CarpetStuff_Injector</defName>
+    <label>carpet stuff injector</label>
+  </CarpetStuff.CarpetStuffInjectorDef>
+</Defs>
