@@ -48,11 +48,6 @@ internal static class CarpetStuffState
     private static readonly Dictionary<TerrainDef, string> BaseKeyByTerrain = new();
     private static bool generated;
 
-    static CarpetStuffState()
-    {
-        LongEventHandler.ExecuteWhenFinished(GenerateMaterialCarpets);
-    }
-
     public static bool TryBuildMaterialOptions(Designator_Dropdown dropdown, out List<FloatMenuOption> options)
     {
         options = new List<FloatMenuOption>();
@@ -121,6 +116,14 @@ internal static class CarpetStuffState
         float clothFlammability = GetThingStat(ThingDefOf.Cloth, StatDefOf.Flammability, DefaultClothFlammability);
         float clothBeauty = Mathf.Max(0.1f, GetThingStat(ThingDefOf.Cloth, StatDefOf.Beauty, DefaultClothBeauty));
         float clothProtectiveness = Mathf.Max(0.01f, GetTotalProtectiveness(ThingDefOf.Cloth, DefaultClothProtectiveness));
+        HashSet<ushort> usedThingHashes = DefDatabase<ThingDef>.AllDefsListForReading
+            .Where(def => def.shortHash != 0)
+            .Select(def => def.shortHash)
+            .ToHashSet();
+        HashSet<ushort> usedTerrainHashes = DefDatabase<TerrainDef>.AllDefsListForReading
+            .Where(def => def.shortHash != 0)
+            .Select(def => def.shortHash)
+            .ToHashSet();
 
         foreach (TerrainDef baseCarpet in baseCarpets)
         {
@@ -137,9 +140,9 @@ internal static class CarpetStuffState
                 DefGenerator.AddImpliedDef(clone.blueprintDef);
                 DefGenerator.AddImpliedDef(clone.frameDef);
                 DefGenerator.AddImpliedDef(clone);
-                AssignGeneratedShortHash(clone.blueprintDef);
-                AssignGeneratedShortHash(clone.frameDef);
-                AssignGeneratedShortHash(clone);
+                AssignGeneratedShortHash(clone.blueprintDef, usedThingHashes);
+                AssignGeneratedShortHash(clone.frameDef, usedThingHashes);
+                AssignGeneratedShortHash(clone, usedTerrainHashes);
                 RegisterTerrain(clone, stuff, baseCarpet.defName);
             }
         }
@@ -498,17 +501,12 @@ internal static class CarpetStuffState
         return clone;
     }
 
-    private static void AssignGeneratedShortHash(ThingDef def)
+    private static void AssignGeneratedShortHash(ThingDef def, HashSet<ushort> used)
     {
         if (def.shortHash != 0)
         {
             return;
         }
-
-        HashSet<ushort> used = DefDatabase<ThingDef>.AllDefsListForReading
-            .Where(existing => existing != def && existing.shortHash != 0)
-            .Select(existing => existing.shortHash)
-            .ToHashSet();
 
         ushort hash = (ushort)(GenText.StableStringHash("CarpetStuff:" + def.defName) % 65535);
         while (hash == 0 || used.Contains(hash))
@@ -517,19 +515,15 @@ internal static class CarpetStuffState
         }
 
         def.shortHash = hash;
+        used.Add(hash);
     }
 
-    private static void AssignGeneratedShortHash(TerrainDef def)
+    private static void AssignGeneratedShortHash(TerrainDef def, HashSet<ushort> used)
     {
         if (def.shortHash != 0)
         {
             return;
         }
-
-        HashSet<ushort> used = DefDatabase<TerrainDef>.AllDefsListForReading
-            .Where(existing => existing != def && existing.shortHash != 0)
-            .Select(existing => existing.shortHash)
-            .ToHashSet();
 
         ushort hash = (ushort)(GenText.StableStringHash("CarpetStuff:" + def.defName) % 65535);
         while (hash == 0 || used.Contains(hash))
@@ -538,6 +532,7 @@ internal static class CarpetStuffState
         }
 
         def.shortHash = hash;
+        used.Add(hash);
     }
 
     private static void RebuildFloorDesignationCategory()
@@ -558,6 +553,7 @@ public sealed class CarpetStuffInjectorDef : Def
     public override void ResolveReferences()
     {
         base.ResolveReferences();
+        CarpetStuffState.GenerateMaterialCarpets();
     }
 }
 
