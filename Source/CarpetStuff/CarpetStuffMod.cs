@@ -38,6 +38,7 @@ internal static class CarpetStuffState
     private static readonly FieldInfo ElementsField = AccessTools.Field(typeof(Designator_Dropdown), "elements");
     private static readonly FieldInfo ActiveDesignatorField = AccessTools.Field(typeof(Designator_Dropdown), "activeDesignator");
     private static readonly FieldInfo ActiveDesignatorSetField = AccessTools.Field(typeof(Designator_Dropdown), "activeDesignatorSet");
+    private static readonly MethodInfo InitializeThingShortHashDictionaryMethod = AccessTools.Method(typeof(DefDatabase<ThingDef>), "InitializeShortHashDictionary");
     private static readonly MethodInfo InitializeTerrainShortHashDictionaryMethod = AccessTools.Method(typeof(DefDatabase<TerrainDef>), "InitializeShortHashDictionary");
     private static readonly MethodInfo ResolveDesignatorsMethod = AccessTools.Method(typeof(DesignationCategoryDef), "ResolveDesignators");
 
@@ -132,12 +133,18 @@ internal static class CarpetStuffState
                 }
 
                 TerrainDef clone = CreateTerrainVariant(baseCarpet, stuff, clothFlammability, clothBeauty, clothProtectiveness);
+                CreateBuildDefsForTerrain(clone);
+                DefGenerator.AddImpliedDef(clone.blueprintDef);
+                DefGenerator.AddImpliedDef(clone.frameDef);
                 DefGenerator.AddImpliedDef(clone);
+                AssignGeneratedShortHash(clone.blueprintDef);
+                AssignGeneratedShortHash(clone.frameDef);
                 AssignGeneratedShortHash(clone);
                 RegisterTerrain(clone, stuff, baseCarpet.defName);
             }
         }
 
+        InitializeThingShortHashDictionaryMethod?.Invoke(null, null);
         InitializeTerrainShortHashDictionaryMethod?.Invoke(null, null);
         RebuildFloorDesignationCategory();
     }
@@ -341,6 +348,29 @@ internal static class CarpetStuffState
         return clone;
     }
 
+    private static void CreateBuildDefsForTerrain(TerrainDef terrain)
+    {
+        if (terrain.blueprintDef != null)
+        {
+            ThingDef blueprint = CloneDef(terrain.blueprintDef);
+            blueprint.defName = $"Blueprint_{terrain.defName}";
+            blueprint.label = terrain.label + "BlueprintLabelExtra".Translate();
+            blueprint.entityDefToBuild = terrain;
+            blueprint.modContentPack = terrain.modContentPack;
+            terrain.blueprintDef = blueprint;
+        }
+
+        if (terrain.frameDef != null)
+        {
+            ThingDef frame = CloneDef(terrain.frameDef);
+            frame.defName = $"Frame_{terrain.defName}";
+            frame.label = terrain.label + "FrameLabelExtra".Translate();
+            frame.entityDefToBuild = terrain;
+            frame.modContentPack = terrain.modContentPack;
+            terrain.frameDef = frame;
+        }
+    }
+
     private static float GetThingStat(ThingDef thingDef, StatDef statDef, float fallback)
     {
         if (thingDef == null)
@@ -439,6 +469,27 @@ internal static class CarpetStuffState
 
         clone.shortHash = 0;
         return clone;
+    }
+
+    private static void AssignGeneratedShortHash(ThingDef def)
+    {
+        if (def.shortHash != 0)
+        {
+            return;
+        }
+
+        HashSet<ushort> used = DefDatabase<ThingDef>.AllDefsListForReading
+            .Where(existing => existing != def && existing.shortHash != 0)
+            .Select(existing => existing.shortHash)
+            .ToHashSet();
+
+        ushort hash = (ushort)(GenText.StableStringHash("CarpetStuff:" + def.defName) % 65535);
+        while (hash == 0 || used.Contains(hash))
+        {
+            hash++;
+        }
+
+        def.shortHash = hash;
     }
 
     private static void AssignGeneratedShortHash(TerrainDef def)
